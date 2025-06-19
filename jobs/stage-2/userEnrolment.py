@@ -74,12 +74,10 @@ class UserEnrolmentModel:
             # Compute and cache the main platform join result
             allCourseProgramCompletionWithDetailsDFWithRating = (
                 enrolmentDFUtil.preComputeUserOrgEnrolment(enrolmentDF, contentOrgDF, userOrgDF, spark)
-                .repartition(32)  # Optimize partitions for downstream processing
-                .cache()
             )
             # Materialize the cache to avoid recomputation
-            platform_count = allCourseProgramCompletionWithDetailsDFWithRating.count()
-            print(f"   Platform enrolments cached: {platform_count:,} records")
+            # platform_count = allCourseProgramCompletionWithDetailsDFWithRating.count()
+            # print(f"   Platform enrolments cached: {platform_count:,} records")
             
             # Process platform data and cache the result
             print("   Applying transformations to platform data...")
@@ -104,8 +102,8 @@ class UserEnrolmentModel:
                 .repartition(32)  # Maintain good partitioning
                 .cache()
             )
-            platform_processed_count = df.count()
-            print(f"   Platform data processed and cached: {platform_processed_count:,} records")
+            #platform_processed_count = df.count()
+            #print(f"   Platform data processed and cached: {platform_processed_count:,} records")
             
             print("🔄 Processing external/marketplace enrolments...")
 
@@ -153,11 +151,9 @@ class UserEnrolmentModel:
                 .withColumnRenamed("status", "dbCompletionStatus")
                 .fillna(0, subset=["courseProgress", "issuedCertificateCount"])
                 .fillna("", subset=["certificateGeneratedOn"])
-                .repartition(16)
-                .cache()
             )
-            marketplace_count = marketPlaceContentEnrolmentsDF.count()
-            print(f"   Marketplace data processed and cached: {marketplace_count:,} records")
+            # marketplace_count = marketPlaceContentEnrolmentsDF.count()
+            # print(f"   Marketplace data processed and cached: {marketplace_count:,} records")
             
             print("   Joining marketplace data with user details...")
             marketPlaceEnrolmentsWithUserDetailsDF = (
@@ -186,8 +182,8 @@ class UserEnrolmentModel:
                            when(col("liveCBPlan").isNull(), False)
                            .otherwise(col("liveCBPlan")))
             )
-            platform_with_acbp_count = enrolmentWithACBP.count()
-            print(f"   Platform with ACBP cached: {platform_with_acbp_count:,} records")
+            # platform_with_acbp_count = enrolmentWithACBP.count()
+            # print(f"   Platform with ACBP cached: {platform_with_acbp_count:,} records")
             
             print("🔄 Generating optimized reports...")
 
@@ -252,8 +248,8 @@ class UserEnrolmentModel:
                     col("live_cbp_plan_mandate").alias("Live_CBP_Plan_Mandate")
                 )
             )
-            marketplace_report_count = mdoMarketplaceReport.count()
-            print(f"   Marketplace report created and cached: {marketplace_report_count:,} records")
+            # marketplace_report_count = mdoMarketplaceReport.count()
+            # print(f"   Marketplace report created and cached: {marketplace_report_count:,} records")
 
             print("   Creating marketplace warehouse data...")
             marketPlaceWarehouseDF = (
@@ -297,11 +293,9 @@ class UserEnrolmentModel:
                 )
                 .withColumn("karma_points", lit(0).cast(IntegerType()))
                 .dropDuplicates(["user_id", "batch_id", "content_id"])
-                .repartition(16)
-                .cache()
             )
-            marketplace_warehouse_count = marketPlaceWarehouseDF.count()
-            print(f"   Marketplace warehouse data cached: {marketplace_warehouse_count:,} records")
+            # marketplace_warehouse_count = marketPlaceWarehouseDF.count()
+            # print(f"   Marketplace warehouse data cached: {marketplace_warehouse_count:,} records")
 
             print("   Creating platform report...")
             mdoPlatformReport = (
@@ -363,8 +357,8 @@ class UserEnrolmentModel:
                 .dropDuplicates(["userID", "Batch_Id", "courseID"])
                 .drop("userID", "courseID")
             )
-            platform_report_count = mdoPlatformReport.count()
-            print(f"   Platform report created and cached: {platform_report_count:,} records")
+            # platform_report_count = mdoPlatformReport.count()
+            # print(f"   Platform report created and cached: {platform_report_count:,} records")
 
             print("   Creating platform warehouse data...")
             platformWarehouseDF = (
@@ -405,8 +399,8 @@ class UserEnrolmentModel:
                 .fillna(0, subset=["karma_points"])
                 .dropDuplicates(["user_id", "batch_id", "content_id"])
             )
-            platform_warehouse_count = platformWarehouseDF.count()
-            print(f"   Platform warehouse data cached: {platform_warehouse_count:,} records")
+            # platform_warehouse_count = platformWarehouseDF.count()
+            # print(f"   Platform warehouse data cached: {platform_warehouse_count:,} records")
 
             print("🔄 Combining and writing final outputs...")
             
@@ -416,8 +410,8 @@ class UserEnrolmentModel:
                 mdoPlatformReport
                 .union(mdoMarketplaceReport)
             )
-            total_report_count = mdoReportDF.count()
-            print(f"   Combined MDO report: {total_report_count:,} records")
+            #total_report_count = mdoReportDF.count()
+            # print(f"   Combined MDO report: {total_report_count:,} records")
 
             print("📝 Writing CSV reports with optimized partitioning...")
             dfexportutil.write_csv_per_mdo_id(mdoReportDF, f"{'reports'}/user_enrolment_report_{today}", 'mdoid')

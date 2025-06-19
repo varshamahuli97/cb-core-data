@@ -454,7 +454,7 @@ if __name__ == "__main__":
     spark = SparkSession.builder \
         .appName("User Enrolment Report Model - Optimized") \
         .config("spark.sql.shuffle.partitions", "64") \
-        .config("spark.executor.memory", "12g") \
+        .config("spark.executor.memory", "50g") \
         .config("spark.driver.memory", "10g") \
         .config("spark.executor.memoryFraction", "0.6") \
         .config("spark.storage.memoryFraction", "0.3") \

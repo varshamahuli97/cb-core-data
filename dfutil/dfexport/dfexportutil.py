@@ -21,8 +21,8 @@ from dfutil.content import contentDFUtil
 # Initialize the Spark Session with tuning configurations
 spark = SparkSession.builder \
     .appName("UserReportGenerator") \
-    .config("spark.executor.memory", "32g") \
-    .config("spark.driver.memory", "32g") \
+    .config("spark.executor.memory", "50g") \
+    .config("spark.driver.memory", "10g") \
     .config("spark.sql.shuffle.partitions", "64") \
     .config("spark.sql.legacy.timeParserPolicy", "LEGACY") \
     .getOrCreate()

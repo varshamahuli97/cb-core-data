@@ -59,10 +59,10 @@ class UserEnrolmentModel:
             
             # Load base DataFrames with optimized partitioning and caching
             print("   Loading enrolment data...")
-           
+            enrolmentDF = spark.read.parquet(ParquetFileConstants.ENROLMENT_COMPUTED_PARQUET_FILE)
             
             print("   Loading user org data...")
-            
+            userOrgDF = spark.read.parquet(ParquetFileConstants.USER_ORG_COMPUTED_FILE)
             
             print("   Loading content org data...")
             contentOrgDF = (spark.read.parquet(ParquetFileConstants.CONTENT_COMPUTED_PARQUET_FILE)

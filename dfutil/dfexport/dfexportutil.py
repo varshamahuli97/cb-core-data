@@ -43,11 +43,13 @@ def write_csv_per_mdo_id(df, output_dir, groupByAttr, isIndividualWrite=False, t
     
     if isIndividualWrite == False:
         print("📊 Step 1: Analyzing group sizes...")
-        df.repartition(32).cache()  # Cache the DataFrame to avoid recomputation
-        df_size = df.count()
+        spark.sparkContext.setCheckpointDir("/tmp/spark-checkpoint")
+        df_clean = df.checkpoint()  # This breaks the lineage completely
+        df_clean.repartition(32).cache()  # Cache the DataFrame to avoid recomputation
+        df_size = df_clean.count()
         print(f"Total rows in DataFrame: {df_size}")
         # Step 1: Get group counts
-        group_counts = df.groupBy(groupByAttr).count()
+        group_counts = df_clean.groupBy(groupByAttr).count()
         group_counts.cache()  # Cache since we'll use it multiple times
         
         # Step 2: Collect IDs for fast + fallback paths
@@ -60,7 +62,7 @@ def write_csv_per_mdo_id(df, output_dir, groupByAttr, isIndividualWrite=False, t
         # Step 3: Fast write for small/medium groups - FILTER FIRST
         if small_ids:
             print("🚀 Writing small groups directly via Spark...")
-            small_df = df.filter(col(groupByAttr).isin(small_ids))
+            small_df = df_clean.filter(col(groupByAttr).isin(small_ids))
             
             small_df \
                 .repartition(groupByAttr) \
@@ -77,7 +79,7 @@ def write_csv_per_mdo_id(df, output_dir, groupByAttr, isIndividualWrite=False, t
             print("🦆 Processing large groups via DuckDB...")
             # df.cache().count()  # Ensure the DataFrame is cached for performance
             # OPTIMIZATION: Filter large IDs first, then write only filtered data to parquet
-            large_df = df.filter(col(groupByAttr).isin(large_ids))
+            large_df = df_clean.filter(col(groupByAttr).isin(large_ids))
             
             parquet_tmp_path = output_dir + '_tmp_large_groups'
             write_csv_per_mdo_id_duckdb(large_df, output_dir, groupByAttr, parquet_tmp_path, large_ids)
@@ -90,7 +92,7 @@ def write_csv_per_mdo_id(df, output_dir, groupByAttr, isIndividualWrite=False, t
     else:
         # Parquet write mode
         print("📦 Writing as partitioned parquet...")
-        df.repartition(groupByAttr) \
+        df_clean.repartition(groupByAttr) \
             .write \
             .mode("overwrite") \
             .partitionBy(groupByAttr) \

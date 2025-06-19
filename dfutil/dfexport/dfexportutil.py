@@ -43,7 +43,9 @@ def write_csv_per_mdo_id(df, output_dir, groupByAttr, isIndividualWrite=False, t
     
     if isIndividualWrite == False:
         print("📊 Step 1: Analyzing group sizes...")
-        df.cache().count()  # Cache the DataFrame to avoid recomputation
+        df.repartition(32).cache()  # Cache the DataFrame to avoid recomputation
+        df_size = df.count()
+        print(f"Total rows in DataFrame: {df_size}")
         # Step 1: Get group counts
         group_counts = df.groupBy(groupByAttr).count()
         group_counts.cache()  # Cache since we'll use it multiple times

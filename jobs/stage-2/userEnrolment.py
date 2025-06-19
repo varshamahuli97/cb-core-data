@@ -59,16 +59,10 @@ class UserEnrolmentModel:
             
             # Load base DataFrames with optimized partitioning and caching
             print("   Loading enrolment data...")
-            enrolmentDF = (spark.read.parquet(ParquetFileConstants.ENROLMENT_COMPUTED_PARQUET_FILE)
-                          .repartition(32)
-                          .cache())
-            enrolmentDF.count()  # Materialize cache
+           
             
             print("   Loading user org data...")
-            userOrgDF = (spark.read.parquet(ParquetFileConstants.USER_ORG_COMPUTED_FILE)
-            .repartition(32)  # 4GB needs proper partitioning
-            .cache())
-            userOrgDF.count()  # Materialize cache
+            
             
             print("   Loading content org data...")
             contentOrgDF = (spark.read.parquet(ParquetFileConstants.CONTENT_COMPUTED_PARQUET_FILE)
@@ -168,11 +162,8 @@ class UserEnrolmentModel:
             print("   Joining marketplace data with user details...")
             marketPlaceEnrolmentsWithUserDetailsDF = (
                 marketPlaceContentEnrolmentsDF.join(userOrgDF, ["userID"], "left")
-                .repartition(16)
-                .cache()
             )
-            marketplace_with_users_count = marketPlaceEnrolmentsWithUserDetailsDF.count()
-            print(f"   Marketplace with user details cached: {marketplace_with_users_count:,} records")
+            
             
             print("🔄 Processing ACBP data...")
             
@@ -184,11 +175,8 @@ class UserEnrolmentModel:
                 .withColumn("liveCBPlan", lit(True))
                 .select(col("userOrgID"), col("courseID"), col("userID"), 
                        col("designation"), col("liveCBPlan"))
-                .repartition(16)
-                .cache()
             )
-            acbp_count = acbpAllEnrolmentDF.count()
-            print(f"   ACBP data processed and cached: {acbp_count:,} records")
+           
 
             # Join platform data with ACBP and cache result
             print("   Joining platform data with ACBP...")
@@ -197,8 +185,6 @@ class UserEnrolmentModel:
                 .withColumn("live_cbp_plan_mandate", 
                            when(col("liveCBPlan").isNull(), False)
                            .otherwise(col("liveCBPlan")))
-                .repartition(32)
-                .cache()
             )
             platform_with_acbp_count = enrolmentWithACBP.count()
             print(f"   Platform with ACBP cached: {platform_with_acbp_count:,} records")
@@ -265,8 +251,6 @@ class UserEnrolmentModel:
                     col("Report_Last_Generated_On"),
                     col("live_cbp_plan_mandate").alias("Live_CBP_Plan_Mandate")
                 )
-                .repartition(16)  # Optimize for downstream operations
-                .cache()
             )
             marketplace_report_count = mdoMarketplaceReport.count()
             print(f"   Marketplace report created and cached: {marketplace_report_count:,} records")
@@ -378,8 +362,6 @@ class UserEnrolmentModel:
                 )
                 .dropDuplicates(["userID", "Batch_Id", "courseID"])
                 .drop("userID", "courseID")
-                .repartition(16)  # REMOVED coalesce(1) - major performance killer
-                .cache()
             )
             platform_report_count = mdoPlatformReport.count()
             print(f"   Platform report created and cached: {platform_report_count:,} records")
@@ -422,8 +404,6 @@ class UserEnrolmentModel:
                 )
                 .fillna(0, subset=["karma_points"])
                 .dropDuplicates(["user_id", "batch_id", "content_id"])
-                .repartition(16)
-                .cache()
             )
             platform_warehouse_count = platformWarehouseDF.count()
             print(f"   Platform warehouse data cached: {platform_warehouse_count:,} records")
@@ -435,7 +415,6 @@ class UserEnrolmentModel:
             mdoReportDF = (
                 mdoPlatformReport
                 .union(mdoMarketplaceReport)
-                .repartition(8)  # Reasonable partition count for final output
             )
             total_report_count = mdoReportDF.count()
             print(f"   Combined MDO report: {total_report_count:,} records")
@@ -447,7 +426,6 @@ class UserEnrolmentModel:
             warehouseDF = (
                 platformWarehouseDF
                 .union(marketPlaceWarehouseDF)
-                .repartition(8)  # REMOVED coalesce(1) - major performance improvement
             )
             
             warehouseDF.write.mode("overwrite").option("compression", "snappy").parquet(f"{'warehouse'}/user_enrolment_report_{today}")
